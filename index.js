@@ -1,6 +1,7 @@
 'use strict';
 var Github = require('github');
 var Q = require('q');
+require('dotenv').config();
 
 var github = new Github({
   version: '3.0.0'
@@ -24,8 +25,9 @@ function githubRemoveAllReleases(auth, owner, repo, done, filter) {
   }
 
   if (typeof filter !== 'function') {
-    filter = function() {
-      return true;
+    filter = function(tag) {
+      console.log (tag.draft);
+      return Boolean(tag.draft);
     };
   }
 
@@ -33,7 +35,8 @@ function githubRemoveAllReleases(auth, owner, repo, done, filter) {
 
   Q.nfcall(github.releases.listReleases, {
     owner: owner,
-    repo: repo
+    repo: repo,
+    per_page: 500
   })
     .then(function(data) {
       var deleteReleasePromises = [];
@@ -44,6 +47,8 @@ function githubRemoveAllReleases(auth, owner, repo, done, filter) {
 
       data.forEach(function(release) {
         if (filter(release)) {
+          var waitTill = new Date(new Date().getTime() + 1 * 1000);
+          while(waitTill > new Date()){}
           deleteReleasePromises.push(Q.nfcall(github.releases.deleteRelease, {
             owner: owner,
             repo: repo,
@@ -61,4 +66,12 @@ function githubRemoveAllReleases(auth, owner, repo, done, filter) {
     });
 }
 
-module.exports = githubRemoveAllReleases;
+var AUTH = {
+    type: 'oauth',
+    token: process.env.GITHUB_TOKEN
+};
+
+
+githubRemoveAllReleases(AUTH, process.env.GITHUB_OWNER, process.env.GITHUB_REPO, function (err, data) {
+    console.log(err, data);
+});
